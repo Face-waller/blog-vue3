@@ -1,15 +1,56 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png" />
-  <HelloWorld msg="Hello Vue 3.0 + Vite" />
+    <loading :show="loadingShow"></loading>
+    <RouterView v-if="isRouterAlive"></RouterView>
 </template>
-
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import loading from "/@/components/loading/loading.vue";
 
-export default {
-  name: 'App',
-  components: {
-    HelloWorld
-  }
-}
+import {useStore} from "vuex";
+
+import {
+    computed,
+    defineComponent,
+    ref,
+    provide,
+    nextTick,
+} from 'vue';
+
+export default defineComponent({
+    components: {
+        loading,
+    },
+    setup() {
+        const isRouterAlive = ref(true)
+
+        const nextFunction = async (before, after)=>{
+            before()
+            await nextTick()
+            after()
+        }
+        const reload = ()=> {
+            nextFunction(()=>{
+                isRouterAlive.value = false;   // 先关闭
+            },()=>{
+                isRouterAlive.value = true   // 再打开
+            })
+        }
+
+        provide('reload', reload)
+
+        // 遮罩层
+        const store = useStore()
+        const loadingShow = computed(()=>{
+            return store.state.loadingShow
+        })
+
+        return {
+            loadingShow,
+            isRouterAlive,
+            reload
+        }
+    },
+
+})
+
 </script>
+
