@@ -3,7 +3,7 @@
     <RouterView v-if="isRouterAlive"></RouterView>
 </template>
 <script>
-import loading from "/@/components/loading/loading.vue";
+import loading from "@/components/loading/loading.vue";
 
 import {useStore} from "vuex";
 
