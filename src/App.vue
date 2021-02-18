@@ -1,5 +1,5 @@
 <template>
-    <loading :show="loadingShow"></loading>
+    <loading :show="Loading"></loading>
     <RouterView v-if="isRouterAlive"></RouterView>
 </template>
 <script>
@@ -39,12 +39,12 @@ export default defineComponent({
 
         // 遮罩层
         const store = useStore()
-        const loadingShow = computed(()=>{
-            return store.state.loadingShow
+        const Loading = computed(()=>{
+            return store.state.Loading
         })
 
         return {
-            loadingShow,
+            Loading,
             isRouterAlive,
             reload
         }

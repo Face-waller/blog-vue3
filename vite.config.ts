@@ -33,10 +33,10 @@ export default {
     https: false,
     proxy: {
       //如果是 /lsbdb 打头，则访问地址如下
-      '/jyorder': {
-        target: 'https://app.whohelp.cc/jyorder',
+      '/api': {
+        target: 'http://api.blogll.cn/api',
         changeOrigin: true,
-        rewrite: (path:string):string => path.replace(/^\/jyorder/, '')
+        rewrite: (path:string):string => path.replace(/^\/api/, '')
       }
     }
   },

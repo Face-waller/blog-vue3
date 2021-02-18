@@ -1,18 +1,19 @@
-/*
-* 配置axios
-* */
+/*配置axios*/
+
+import { ElMessage } from 'element-plus'
 
 import axios from 'axios'
 
 import {store} from '../store/index'
 
 // BaseUrl
-const baseUrl:string = 'http://api.blogll.cn';
+const baseUrl:string =
+    process.env.NODE_ENV === 'development' ?
+    'http://localhost:3000/api' :
+    'http://api.blogll.cn/api'
 
-// 后缀
-const suffix:string = '/api'
 
-axios.defaults.baseURL = process.env.NODE_ENV === 'development' ? baseUrl + suffix : baseUrl + suffix;
+axios.defaults.baseURL = baseUrl
 axios.defaults.headers.post['Content-Type'] = 'application/json; charset=utf-8'; /*application/x-www-form-urlencoded*/
 // 超时时间
 axios.defaults.timeout = 6000;
@@ -36,7 +37,7 @@ axios.interceptors.request.use(
     }, error => {
         removeSpin();
 
-        alert(error.message)
+        ElMessage.error(error.message)
         return Promise.reject(error)
     }
 );
@@ -58,7 +59,52 @@ axios.interceptors.response.use(
     }, error => {
         removeSpin();
 
-        alert(error.message)
+        // 判断请求错误类型
+        if (error && error.response) {
+
+            switch (error.response.status) {
+
+                case 400:
+                    error.message = '接口请求错误'
+                    break
+                case 401:
+                    error.message = '接口未授权'
+                    break
+                case 403:
+                    error.message = '接口拒绝访问'
+                    break
+                case 404:
+                    error.message = '接口找不到'
+                    break
+                case 408:
+                    error.message = '接口请求超时'
+                    break
+                case 500:
+                    error.message = '服务器内部错误'
+                    break
+                case 501:
+                    error.message = '接口服务未实现'
+                    break
+                case 502:
+                    error.message = '网关错误'
+                    break
+                case 503:
+                    error.message = '服务不可用'
+                    break
+                case 504:
+                    error.message = '网关超时'
+                    break
+                case 505:
+                    error.message = 'HTTP版本不受支持'
+                    break
+            }
+        }
+        if (error.code === 'ECONNABORTED') {
+            ElMessage.error('接口访问超时')
+        } else {
+            debugger
+            ElMessage.error(error.message);
+        }
 
         // 判断是否登录失效，按照实际项目的接口返回状态来判断
         return Promise.reject(error);
