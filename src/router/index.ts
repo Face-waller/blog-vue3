@@ -2,34 +2,25 @@ import {createRouter, createWebHashHistory, RouteRecordRaw} from 'vue-router'
 
 const history = createWebHashHistory()
 
-// 路由懒加载
-function route (path:string, name:string, filePath:string) {
-    return {
-        path:path,
-        name:name,
-        component: () => import('../pages' + filePath)
-    }
-}
-
 const routes:RouteRecordRaw[] = [
     {
         path:'/',
         component: () => import('../pages/Layout.vue'),
         redirect:"/index",
         children:[
-            route("/index", "index", "/other/Index.vue"),
-            route("/log", "log", "/other/Log.vue"),
-            route("/about", "about", "/other/About.vue"),
-            route("/userAgreement", "agreement", "/user/UserAgreement.vue"),
-            route("/login", "login", "/user/Login.vue"),
-            route("/register", "register", "/user/Register.vue"),
-            route("/articleRead","articleRead","/article/ArticleReadOfCkEditor.vue"),
-            route("/fullTextSearch","fullTextSearch","/article/FullTextSearchList.vue"),
-            route("/myArticle", "myArticle", "/article/MyArticleList.vue"),
-            route("/typeArticle", "typeArticle", "/article/TypeArticleList.vue"),
-            route("/leaveMessage", "leaveMessage", "/other/LeaveMessage.vue"),
+            {path: '/index', name: 'index', component: ()=> import('../pages/other/Index.vue')},
+            {path: '/log', name: 'log', component: ()=> import('../pages/other/Log.vue')},
+            {path: '/about', name: 'about', component: ()=> import('../pages/other/About.vue')},
+            {path: '/userAgreement', name: 'agreement', component: ()=> import('../pages/user/UserAgreement.vue')},
+            {path: '/login', name: 'login', component: ()=> import('../pages/user/Login.vue')},
+            {path: '/register', name: 'register', component: ()=> import('../pages/user/Register.vue')},
+            {path: '/articleRead', name: 'articleRead', component: ()=> import('../pages/article/ArticleReadOfCkEditor.vue')},
+            {path: '/fullTextSearch', name: 'fullTextSearch', component: ()=> import('../pages/article/FullTextSearchList.vue')},
+            {path: '/myArticle', name: 'myArticle', component: ()=> import('../pages/article/MyArticleList.vue')},
+            {path: '/typeArticle', name: 'typeArticle', component: ()=> import('../pages/article/TypeArticleList.vue')},
+            {path: '/leaveMessage', name: 'leaveMessage', component: ()=> import('../pages/other/LeaveMessage.vue')},
             /* route("/articleWrite","articleWrite","/article/ArticleWriteOfCkEditor"), // thymeleaf 请求路径写死 ，写文章按钮
-             route("/modifyArticle","modifyArticle","/article/ModifyArticleOfCkEditor"), // thymeleaf 请求路径写死 ，编辑文章按钮*/
+            route("/modifyArticle","modifyArticle","/article/ModifyArticleOfCkEditor"), // thymeleaf 请求路径写死 ，编辑文章按钮*/
         ]
     },
 ]
@@ -45,3 +36,4 @@ export default createRouter({
         return { left: 0, top: 0}
     }
 })
+

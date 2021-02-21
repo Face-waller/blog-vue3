@@ -13,10 +13,10 @@
 
                 <!--大屏显示-->
                 <div class="header-menu--big">
-                    <router-link :to="{ name:'index'}" :class="headerRadio == 1 ? 'active' : ''" @click.native.stop="headerRadio = 1">首页</router-link>
-                    <router-link :to="{ name:'leaveMessage' }" :class="headerRadio == 2 ? 'active' : ''" @click.native.stop="headerRadio = 2">留言</router-link>
-                    <router-link :to="{ name:'log', query: { page:1 } }" :class="headerRadio == 3 ? 'active' : ''" @click.native.stop="headerRadio = 3">日志</router-link>
-                    <router-link :to="{ name:'about' }" :class="headerRadio == 4 ? 'active' : ''" @click.native.stop="headerRadio = 4">关于</router-link>
+                    <router-link :to="{ name:'index'}" :class="headerRadio === 1 ? 'active' : ''" @click.native.stop="headerRadio = 1">首页</router-link>
+                    <router-link :to="{ name:'leaveMessage' }" :class="headerRadio === 2 ? 'active' : ''" @click.native.stop="headerRadio = 2">留言</router-link>
+                    <router-link :to="{ name:'log', query: { page:1 } }" :class="headerRadio === 3 ? 'active' : ''" @click.native.stop="headerRadio = 3">日志</router-link>
+                    <router-link :to="{ name:'about' }" :class="headerRadio === 4 ? 'active' : ''" @click.native.stop="headerRadio = 4">关于</router-link>
                 </div>
 
                 <!--小屏显示-->
@@ -69,19 +69,19 @@
         <!--显示折叠选项-->
         <div class="fold-container" @click.stop="foldClick">
             <div class="fold-menu">
-                <router-link :to="{ name:'index'}" :class="headerRadio == 1 ? 'active' : ''" @click.native.stop="headerRadio = 1;foldMenuClick()">首页</router-link>
+                <router-link :to="{ name:'index'}" :class="headerRadio === 1 ? 'active' : ''" @click.native.stop="headerRadio = 1;foldMenuClick()">首页</router-link>
             </div>
             <div class="fold-item"></div>
             <div class="fold-menu">
-                <router-link :to="{ name:'leaveMessage' }" :class="headerRadio == 2 ? 'active' : ''" @click.native.stop="headerRadio = 2;foldMenuClick()">留言</router-link>
+                <router-link :to="{ name:'leaveMessage' }" :class="headerRadio === 2 ? 'active' : ''" @click.native.stop="headerRadio = 2;foldMenuClick()">留言</router-link>
             </div>
             <div class="fold-item"></div>
             <div class="fold-menu">
-                <router-link :to="{ name:'log', query: { page:1 } }" :class="headerRadio == 3 ? 'active' : ''" @click.native.stop="headerRadio = 3;foldMenuClick()">日志</router-link>
+                <router-link :to="{ name:'log', query: { page:1 } }" :class="headerRadio === 3 ? 'active' : ''" @click.native.stop="headerRadio = 3;foldMenuClick()">日志</router-link>
             </div>
             <div class="fold-item"></div>
             <div class="fold-menu">
-                <router-link :to="{ name:'about' }" :class="headerRadio == 4 ? 'active' : ''" @click.native.stop="headerRadio = 4;foldMenuClick()">关于</router-link>
+                <router-link :to="{ name:'about' }" :class="headerRadio === 4 ? 'active' : ''" @click.native.stop="headerRadio = 4;foldMenuClick()">关于</router-link>
             </div>
         </div>
 
@@ -110,7 +110,7 @@
 
         <!--    侧边栏-->
         <el-drawer
-            :visible.sync="drawer"
+            v-model="drawer"
             :direction="direction"
             :before-close="handleClose"
         >
@@ -126,305 +126,337 @@
                 </div>
             </div>
         </el-drawer>
-
     </div>
-
 </template>
 
-<script>
+<script lang="ts">
 import {axios} from '@/utils/http'
 
+import {isStrNull} from "../utils/jsTools";
+
+import router from '@/router/index'
+
+import { ElNotification as message } from 'element-plus';
+
+import {
+    ref,
+    reactive,
+    computed,
+    watch,
+    inject,
+    provide,
+    toRefs,
+    onMounted,
+    nextTick,
+} from 'vue'
+
+const enum Direction {down='down', up='up', none=''}
+
 export default {
-    inject:['reload'],      // 注入App里的reload方法
-    name: 'layout',
-    data(){
-        return {
-            childPageArticleTitle: '', // 文章阅读页面子组件的文字标题
-            searchValue: '', // 搜索值
-            isLogined:false,  // 已登录
-            drawer: false,    // drawer抽屉
-            direction: 'ltr', // 抽屉弹出方向
-            headerRadio: 1,
-            username:'',        // 用户名
 
-            mainContent: '', // 主体需要滚动的dom对象
-            lastRollDirection: '', // 上次滚动方向
-            lastScrollTop: 0, // 上次的scrollTop值
+    setup(props,context) {
+        // 注入App里的reload方法
+        const reload = inject('reload')
 
-            totalUpDistance: 0,    // 上移距离，若下移过，就重置为零
-            totalDownDistance: 0,  // 下移距离，若上移过，就重置为零
+        const nextFn = inject('nextFn')
 
-            distanceThresholdValue: 100, // 累计滚动距离达到阀值，
+        const other = {
+            // 文章阅读页面子组件的文字标题
+            childPageArticleTitle: ref<string>(''),
 
-            isFoldContainerShrink: true, // 折叠项fold是否是缩小状态
+            // 已登录
+            isLogined: ref<boolean>(false),
+            headerRadio: ref<number>(1),
+            // 用户名
+            username: ref<string>(''),
 
+            // 判断登录
+            isLogin():void {
+                try {
+                    axios.get("/user/verify").then(resp => {
+                        // console.log(resp.data); // 返回的Response体
+                        // console.log(resp.data.username);
+                        this.isLogined.value = true;
+                        this.username.value = resp.data.username;
+                    }).catch(error => {
+                        this.isLogined.value = false;
+                        this.username.value = '';
+                    });
+                } catch (e) {
+                    console.log(e);
+                    this.isLogined.value = false;
+                    this.username.value = '';
+                }
+
+            },
+
+            // 登出
+            logOut():void {
+                this.closeDrawer();
+                // 删除cookie
+                this.clearAllCookie();
+                reload();
+            },
+
+            clearAllCookie():void {
+                var keys = document.cookie.match(/[^ =;]+(?=\=)/g);
+                if (keys) {
+                    for (var i = keys.length; i--;) {
+                        document.cookie = keys[i] + '=0;path=/;domain=blogll.cn;expires=' + new Date(0).toUTCString();//清除一级域名下的或指定的，例如 .blogll.com
+                    }
+                }
+            },
+
+            // drawer抽屉关闭
+            closeDrawer():void {
+                this.drawer.value = false
+            },
+
+            // drawer抽屉关闭前调用方法
+            handleClose(done):void {
+                done()
+            },
+
+            // 获取文章阅读页子组件的文章标题
+            getArticleTitle(title):void {
+                this.childPageArticleTitle.value = title;
+            },
+
+            interfaceClick():void {
+                if (!scroll.isFoldContainerShrink) {
+                    fold.foldShrink();
+                }
+            }
         }
-    },
 
-    methods: {
-        // 跳转到搜索列表界面
-        skipArticleList() {
-            if (this.searchValue == null) {
-                this.open("提示~", "搜素内容为空");
-                return;
-            }
-            if (this.isNull(this.searchValue)) {
-                this.open("提示~", "搜素内容为空");
-                return;
-            }
-            // 跳转 所有文章列表界面
-            this.$router.push({
-                name: "fullTextSearch",
-                query: {page: "1", searchValue: this.searchValue}
-            });
-        },
-        // 搜索图标点击事件
-        searchIcoClick() {
-            this.skipArticleList();
-        },
-        // 搜索按钮enter事件函数
-        searchEnter() {
-            this.skipArticleList();
-        },
-        // 搜索图标点击事件 -- 小屏幕的输入框
-        searchIcoClickSmall() {
-            this.skipArticleList();
-            // 刷新页面，以重置header
-            this.nextTick(()=>{
-                this.reload();
-            })
-        },
-        // 搜索按钮enter事件函数 -- 小屏幕的输入框
-        searchEnterSmall() {
-            this.skipArticleList();
-            // 刷新页面，以重置header
-            this.nextTick(()=>{
-                setTimeout(()=>{
-                    this.reload();
-                },1000)
-            })
-        },
-        // 字符串是否为空
-        isNull(str) {
-            if (str === "") return true;
-            var regu = "^[ ]+$";
-            var re = new RegExp(regu);
-            return re.test(str);
-        },
+        const search = {
+            // 搜索值
+            searchValue: ref<string>(''),
+            // 搜索图标点击事件
+            searchIcoClick():void {
+                this.skipArticleList();
+            },
 
-        // 判断登录
-        isLogin() {
-            try {
-                axios.get("/user/verify").then(resp => {
-                    // console.log(resp.data); // 返回的Response体
-                    // console.log(resp.data.username);
-                    this.isLogined = true;
-                    this.username = resp.data.username;
-                }).catch(error => {
-                    this.isLogined = false;
-                    this.username = '';
+            // 搜索按钮enter事件函数
+            searchEnter():void {
+                this.skipArticleList();
+            },
+
+            // 搜索图标点击事件 -- 小屏幕的输入框
+            searchIcoClickSmall():void {
+                const that = this
+                // 刷新页面，以重置header
+                nextFn(()=>{
+                    that.skipArticleList();
+                },()=>{
+                    reload()
+                })
+            },
+
+            // 跳转到搜索列表界面
+            skipArticleList():void {
+                if (this.searchValue == null) {
+                    message.warning("提示~", "搜素内容为空");
+                    return;
+                }
+                if (isStrNull(this.searchValue)) {
+                    message.warning("提示~", "搜素内容为空");
+                    return;
+                }
+                // 跳转 所有文章列表界面
+                router.push({
+                    name: "fullTextSearch",
+                    query: {page: "1", searchValue: this.searchValue}
                 });
-            } catch (e) {
-                console.log(e);
-                this.isLogined = false;
-                this.username = '';
-            }
+            },
+        }
 
-        },
-        // 登出
-        logOut() {
-            this.closeDrawer();
-            // 删除cookie
-            this.clearAllCookie();
-            this.reload();
-        },
+        const scroll = {
 
-        clearAllCookie() {
-            var keys = document.cookie.match(/[^ =;]+(?=\=)/g);
-            if (keys) {
-                for (var i = keys.length; i--;) {
-                    document.cookie = keys[i] + '=0;path=/;domain=blogll.cn;expires=' + new Date(0).toUTCString();//清除一级域名下的或指定的，例如 .blogll.com
+            normalDiv: ref<HTMLElement | null>(null),
+
+            // drawer抽屉
+            drawer: ref<boolean>(false),
+            // 抽屉弹出方向
+            direction: ref<string>('ltr'),
+
+            // 主体需要滚动的dom对象
+            mainContent: ref<HTMLElement | null>(null),
+            // 上次滚动方向
+            lastRollDirection: ref<Direction>(Direction.none),
+            // 上次的scrollTop值
+            lastScrollTop: ref<number>(0),
+            // 上移距离，若下移过，就重置为零
+            totalUpDistance: ref<number>(0),
+            // 下移距离，若上移过，就重置为零
+            totalDownDistance: ref<number>(0),
+            // 累计滚动距离达到阀值
+            distanceThresholdValue: ref<number>(100),
+            // 折叠项fold是否是缩小状态
+            isFoldContainerShrink: ref<boolean>(true),
+
+
+
+            // 滚动事件被函数
+            scrollEventFun():void {
+                // console.log('节流函数执行了！')
+                // 初始化滚动方向
+                this.lastRollDirection = this.lastRollDirection === Direction.none ? Direction.down : this.lastRollDirection;
+                // 获取现在的scrollTop与上次移动时的scrollTop
+                let distance = this.mainContent.scrollTop - this.lastScrollTop
+                // 判断现在是上移还是下移
+                if (distance > 0) {
+                    // 现在是下移
+                    if (this.lastRollDirection === Direction.down) {
+                        // 之前是下移，累加下移距离
+                        this.totalUpDistance = 0;
+                        this.totalDownDistance += distance;
+                    } else if (this.lastRollDirection === Direction.up) {
+                        // 之前是上移，重置下移距离为零
+                        this.totalUpDistance = 0;
+                        this.totalDownDistance = distance;
+                        // 重新赋值lastRollDirection
+                        this.lastRollDirection = Direction.down;
+                    }
+                } else if (distance <= 0) {
+                    // 现在是上移
+                    if (this.lastRollDirection === Direction.down) {
+                        // 之前是下移，重置下移距离为零
+                        this.totalDownDistance = '';
+                        this.totalUpDistance = distance;
+                        // 重新赋值lastRollDirection
+                        this.lastRollDirection = Direction.up
+                    } else if (this.lastRollDirection === Direction.up) {
+                        // 之前是上移，累加上移距离
+                        this.totalDownDistance = 0;
+                        this.totalUpDistance += distance;
+                    }
                 }
-            }
-        },
+                distance = null;
+                // 判断积累移动距离以更换header内容
+                this.judgeTotalDistance(this.totalDownDistance, (document.getElementsByClassName('fq-header')[0].offsetHeight * -1));
+                this.judgeTotalDistance(this.totalUpDistance, 0);
+                // 重新赋值lastScrollTop
+                this.lastScrollTop = this.mainContent.scrollTop;
 
-        // drawer抽屉关闭
-        closeDrawer() {
-            this.drawer = false
-        },
+            },
 
-        // drawer抽屉关闭前调用方法
-        handleClose(done) {
-            done()
-        },
+            // 节流函数
+            throttleFunction(fn, delay) {
+                let timer = null;
+                let startTime = Date.now();
+                return function () {
+                    let currentTime = Date.now();
+                    let remaining = delay - (currentTime - startTime);
+                    clearTimeout(timer);
+                    if (remaining <= 0) {
+                        fn();
+                        startTime = Date.now()
+                    } else {
+                        timer = setTimeout(fn, remaining);
+                    }
+                }
+            },
 
-        // 滚动事件被函数
-        scrollEventFun() {
-            // console.log('节流函数执行了！')
-            // 初始化滚动方向
-            this.lastRollDirection = this.lastRollDirection ? this.lastRollDirection : 'down';
-            // 获取现在的scrollTop与上次移动时的scrollTop
-            let distance = this.mainContent.scrollTop - this.lastScrollTop
-            // 判断现在是上移还是下移
-            if (distance > 0) {
-                // 现在是下移
-                if (this.lastRollDirection === 'down') {
-                    // 之前是下移，累加下移距离
+            // 判断累计移动距离，更换header内容
+            judgeTotalDistance(distance:number,num:number) {
+                if (Math.abs(distance) >= this.distanceThresholdValue) {
+                    //控制header的隐藏
+                    this.normalDiv.style.setProperty( 'margin-top', num + 'px' );
+                    //控制折叠菜单项的显示,因为此div是absolute状态，会一直显示，需要不让其显示
+                    if (num === (document.getElementsByClassName('fq-header')[0].offsetHeight * -1)) {
+                        document.body.style.setProperty('--foldDisplay','none')
+                    } else if (num === 0) {
+                        setTimeout(()=>{
+                            document.body.style.setProperty('--foldDisplay','block')
+                        },200)
+                    }
+                    // 重置累计移动距离
                     this.totalUpDistance = 0;
-                    this.totalDownDistance += distance;
-                } else if (this.lastRollDirection === 'up') {
-                    // 之前是上移，重置下移距离为零
-                    this.totalUpDistance = 0;
-                    this.totalDownDistance = distance;
-                    // 重新赋值lastRollDirection
-                    this.lastRollDirection = 'down';
-                }
-            } else if (distance <= 0) {
-                // 现在是上移
-                if (this.lastRollDirection === 'down') {
-                    // 之前是下移，重置下移距离为零
                     this.totalDownDistance = 0;
-                    this.totalUpDistance = distance;
-                    // 重新赋值lastRollDirection
-                    this.lastRollDirection = 'up'
-                } else if (this.lastRollDirection === 'up') {
-                    // 之前是上移，累加上移距离
-                    this.totalDownDistance = 0;
-                    this.totalUpDistance += distance;
                 }
             }
-            distance = null;
-            // 判断积累移动距离以更换header内容
-            this.judgeTotalDistance(this.totalDownDistance, (document.getElementsByClassName('fq-header')[0].offsetHeight * -1));
-            this.judgeTotalDistance(this.totalUpDistance, 0);
-            // 重新赋值lastScrollTop
-            this.lastScrollTop = this.mainContent.scrollTop;
+        }
 
-        },
-
-        // 节流函数
-        throttleFunction(fn, delay) {
-            let timer = null;
-            let startTime = Date.now();
-            return function () {
-                let currentTime = Date.now();
-                let remaining = delay - (currentTime - startTime);
-                clearTimeout(timer);
-                if (remaining <= 0) {
-                    fn();
-                    startTime = Date.now()
+        const fold = {
+            // 折叠选项点击
+            foldClick() {
+                // 判断当前是否是缩小状态
+                if (scroll.isFoldContainerShrink) {
+                    this.foldExpand();
                 } else {
-                    timer = setTimeout(fn, remaining);
+                    this.foldExpand();
                 }
-            }
-        },
+            },
 
-        // 判断累计移动距离，更换header内容
-        judgeTotalDistance(distance,num) {
-            if (Math.abs(distance) >= this.distanceThresholdValue) {
-                //控制header的隐藏
-                this.$refs.normalDiv.style.setProperty( 'margin-top', num + 'px' );
-                //控制折叠菜单项的显示,因为此div是absolute状态，会一直显示，需要不让其显示
-                if (num === (document.getElementsByClassName('fq-header')[0].offsetHeight * -1)) {
-                    document.body.style.setProperty('--foldDisplay','none')
-                } else if (num === 0) {
-                    setTimeout(()=>{
-                        document.body.style.setProperty('--foldDisplay','block')
-                    },200)
-                }
-                // 重置累计移动距离
-                this.totalUpDistance = 0;
-                this.totalDownDistance = 0;
-            }
-        },
+            // 折叠项的menu被点击
+            foldMenuClick() {
+                this.foldShrink()
+            },
 
-        // 获取文章阅读页子组件的文章标题
-        getArticleTitle(title) {
-            this.childPageArticleTitle = title;
-        },
+            // 折叠项展开
+            foldExpand() {
+                // 折叠项展开时，动画曲线先慢后快，加速
+                document.body.style.setProperty('--transitionTiming','ease-in')
 
-        // 折叠选项点击
-        foldClick() {
-            // 判断当前是否是缩小状态
-            if (this.isFoldContainerShrink) {
-                this.foldExpand();
-            } else {
-                this.foldExpand();
-            }
-        },
+                document.body.style.setProperty('--foldHeight','500px');
+                document.body.style.setProperty('--foldWidth','200px');
+                document.body.style.setProperty('--foldTop','calc(var(--headerHeight) + 1.5vh)');
+                document.body.style.setProperty('--foldBGC','#676A74');
+                document.body.style.setProperty('--foldRadius','4px');
+                document.body.style.setProperty('--foldShadow','0 0 10px #676A74');
 
-        // 折叠项的menu被点击
-        foldMenuClick() {
-            this.foldShrink()
-        },
+                document.body.style.setProperty('--foldItemHeight','5px');
+                document.body.style.setProperty('--foldItemBGC','white');
 
-        // 折叠项展开
-        foldExpand() {
-            // 折叠项展开时，动画曲线先慢后快，加速
-            document.body.style.setProperty('--transitionTiming','ease-in')
+                document.body.style.setProperty('--foldMenuContentDisplay','inline');
 
-            document.body.style.setProperty('--foldHeight','500px');
-            document.body.style.setProperty('--foldWidth','200px');
-            document.body.style.setProperty('--foldTop','calc(var(--headerHeight) + 1.5vh)');
-            document.body.style.setProperty('--foldBGC','#676A74');
-            document.body.style.setProperty('--foldRadius','4px');
-            document.body.style.setProperty('--foldShadow','0 0 10px #676A74');
+                scroll.isFoldContainerShrink = false;
+            },
 
-            document.body.style.setProperty('--foldItemHeight','5px');
-            document.body.style.setProperty('--foldItemBGC','white');
+            // 折叠箱收缩
+            foldShrink() {
+                // 折叠项收缩时，动画曲线先快后慢，减速
+                document.body.style.setProperty('--transitionTiming','ease-out')
 
-            document.body.style.setProperty('--foldMenuContentDisplay','inline');
+                document.body.style.setProperty('--foldHeight','25px');
+                document.body.style.setProperty('--foldWidth','25px');
+                document.body.style.setProperty('--foldTop','calc((var(--headerHeight) - 25px) / 2)');
+                document.body.style.setProperty('--foldBGC','inherit');
+                document.body.style.setProperty('--foldRadius','0px');
+                document.body.style.setProperty('--foldShadow','none');
 
-            this.isFoldContainerShrink = false;
-        },
+                document.body.style.setProperty('--foldItemHeight','2px');
+                document.body.style.setProperty('--foldItemBGC','#676A74');
 
-        // 折叠箱收缩
-        foldShrink() {
-            // 折叠项收缩时，动画曲线先快后慢，减速
-            document.body.style.setProperty('--transitionTiming','ease-out')
+                document.body.style.setProperty('--foldMenuContentDisplay','none');
 
-            document.body.style.setProperty('--foldHeight','25px');
-            document.body.style.setProperty('--foldWidth','25px');
-            document.body.style.setProperty('--foldTop','calc((var(--headerHeight) - 25px) / 2)');
-            document.body.style.setProperty('--foldBGC','inherit');
-            document.body.style.setProperty('--foldRadius','0px');
-            document.body.style.setProperty('--foldShadow','none');
-
-            document.body.style.setProperty('--foldItemHeight','2px');
-            document.body.style.setProperty('--foldItemBGC','#676A74');
-
-            document.body.style.setProperty('--foldMenuContentDisplay','none');
-
-            this.isFoldContainerShrink = true;
-        },
-
-        interfaceClick() {
-            if (!this.isFoldContainerShrink) {
-                this.foldShrink();
+                scroll.isFoldContainerShrink = true;
             }
         }
 
-    },
+        const isArticleReadPage = computed(()=>{
+            return router.path === '/articleRead';
+        })
 
-    created() {
-    },
+        onMounted(()=>{
+            debugger
+            // 监听滚动事件
+            scroll.mainContent = document.getElementById('main-content');
+            scroll.mainContent.addEventListener('scroll', scroll.throttleFunction(scroll.scrollEventFun,400));
 
-    computed: {
-        isArticleReadPage () {
-            return this.$route.path === '/articleRead';
+            // 判断登录
+            other.isLogin();
+        })
+
+        return {
+            ...other,
+            ...search,
+            ...scroll,
+            ...fold,
+            isArticleReadPage,
         }
-    },
-
-    mounted(){
-        // 监听滚动事件
-        this.mainContent = document.getElementById('main-content');
-        this.mainContent.addEventListener('scroll', this.throttleFunction(this.scrollEventFun,400));
-
-        // 判断登录
-        this.isLogin();
-
-    },
-
+    }
 }
 </script>
 

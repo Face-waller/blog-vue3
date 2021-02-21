@@ -101,8 +101,7 @@ axios.interceptors.response.use(
         }
         if (error.code === 'ECONNABORTED') {
             ElMessage.error('接口访问超时')
-        } else {
-            debugger
+        } else if (error.response.status !== 500) {
             ElMessage.error(error.message);
         }
 

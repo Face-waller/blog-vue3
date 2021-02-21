@@ -1,6 +1,6 @@
 <template>
     <loading :show="Loading"></loading>
-    <RouterView v-if="isRouterAlive"></RouterView>
+    <RouterView></RouterView>
 </template>
 <script>
 import loading from "@/components/loading/loading.vue";
@@ -22,13 +22,14 @@ export default defineComponent({
     setup() {
         const isRouterAlive = ref(true)
 
-        const nextFunction = async (before, after)=>{
+        const nextFn = async (before, after)=>{
             before()
             await nextTick()
             after()
         }
+
         const reload = ()=> {
-            nextFunction(()=>{
+            nextFn(()=>{
                 isRouterAlive.value = false;   // 先关闭
             },()=>{
                 isRouterAlive.value = true   // 再打开
@@ -36,6 +37,7 @@ export default defineComponent({
         }
 
         provide('reload', reload)
+        provide('nextFn',nextFn)
 
         // 遮罩层
         const store = useStore()
